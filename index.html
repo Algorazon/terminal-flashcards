@@ -196,6 +196,87 @@
             opacity: 0.6;
         }
         
+        .answer-input-container {
+            margin-top: 2rem;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .answer-input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(88, 166, 255, 0.05);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .answer-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            background: rgba(88, 166, 255, 0.1);
+        }
+        
+        .answer-input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+        
+        .show-answer-btn {
+            margin-top: 1rem;
+            padding: 0.875rem 2rem;
+            background: var(--accent-blue);
+            color: var(--bg-dark);
+            border: none;
+            border-radius: 8px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.875rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .show-answer-btn:hover {
+            background: var(--accent-green);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        
+        .show-answer-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .user-answer-display {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(63, 185, 80, 0.1);
+            border-left: 3px solid var(--accent-green);
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+        }
+        
+        .user-answer-label {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+        
+        .user-answer-text {
+            color: var(--accent-green);
+            font-size: 1rem;
+        }
+        
         .buttons {
             display: flex;
             gap: 1rem;
@@ -444,6 +525,7 @@
             const [cards, setCards] = useState([]);
             const [currentCardIndex, setCurrentCardIndex] = useState(0);
             const [isFlipped, setIsFlipped] = useState(false);
+            const [userAnswer, setUserAnswer] = useState('');
             const [stats, setStats] = useState({ total: 0, learned: 0, reviewing: 0 });
             const [sessionComplete, setSessionComplete] = useState(false);
             
@@ -506,6 +588,7 @@
                 if (currentCardIndex < cards.length - 1) {
                     setCurrentCardIndex(currentCardIndex + 1);
                     setIsFlipped(false);
+                    setUserAnswer(''); // Reset user answer for next card
                 } else {
                     setSessionComplete(true);
                 }
@@ -535,6 +618,7 @@
                 setCards(dueCards.length > 0 ? dueCards : allCards.slice(0, 5));
                 setCurrentCardIndex(0);
                 setIsFlipped(false);
+                setUserAnswer('');
                 setSessionComplete(false);
                 updateStats(allCards);
             };
@@ -611,7 +695,6 @@
                     <div className="card-container">
                         <div 
                             className={`flashcard ${isFlipped ? 'flipped' : ''}`}
-                            onClick={() => setIsFlipped(!isFlipped)}
                         >
                             <div className="card-type">{currentCard.category}</div>
                             <div className="card-number">{currentCardIndex + 1}/{cards.length}</div>
@@ -619,8 +702,39 @@
                             <div className="card-content">
                                 <div className="card-question">{currentCard.question}</div>
                                 
+                                {!isFlipped && (
+                                    <div className="answer-input-container">
+                                        <input
+                                            type="text"
+                                            className="answer-input"
+                                            placeholder="Type your answer..."
+                                            value={userAnswer}
+                                            onChange={(e) => setUserAnswer(e.target.value)}
+                                            onKeyPress={(e) => {
+                                                if (e.key === 'Enter' && userAnswer.trim()) {
+                                                    setIsFlipped(true);
+                                                }
+                                            }}
+                                            autoFocus
+                                        />
+                                        <button 
+                                            className="show-answer-btn"
+                                            onClick={() => setIsFlipped(true)}
+                                            disabled={!userAnswer.trim()}
+                                        >
+                                            Show Answer
+                                        </button>
+                                    </div>
+                                )}
+                                
                                 {isFlipped && (
                                     <>
+                                        {userAnswer && (
+                                            <div className="user-answer-display">
+                                                <div className="user-answer-label">Your Answer:</div>
+                                                <div className="user-answer-text">{userAnswer}</div>
+                                            </div>
+                                        )}
                                         <div className="card-answer">{currentCard.answer}</div>
                                         <div className="card-example">{currentCard.example}</div>
                                         {currentCard.tip && (
@@ -629,10 +743,6 @@
                                     </>
                                 )}
                             </div>
-                            
-                            {!isFlipped && (
-                                <div className="flip-hint">Tap to reveal</div>
-                            )}
                         </div>
                         
                         {isFlipped && (
