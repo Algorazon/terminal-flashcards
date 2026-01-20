@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal Flashcards</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0a0e14; --bg-card: #161b22; --text-primary: #c9d1d9;
+            --text-secondary: #8b949e; --accent-green: #3fb950; --accent-blue: #58a6ff;
+            --accent-yellow: #d29922; --border: #30363d; --shadow: rgba(0, 0, 0, 0.5);
+        }
+        body {
+            font-family: 'Space Mono', monospace; background: var(--bg-dark); color: var(--text-primary);
+            min-height: 100vh; display: flex; flex-direction: column; padding: 1rem; line-height: 1.6;
+        }
+        .header { text-align: center; margin-bottom: 2rem; animation: fadeInDown 0.6s ease-out; }
+        .header h1 { font-size: 1.5rem; font-weight: 700; color: var(--accent-green); margin-bottom: 0.5rem; letter-spacing: 0.05em; }
+        .header p { font-size: 0.875rem; color: var(--text-secondary); }
+        .deck-selector { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; margin-bottom: 1.5rem; animation: fadeIn 0.6s ease-out; }
+        .deck-btn {
+            padding: 0.5rem 1rem; background: var(--bg-card); border: 2px solid var(--border); border-radius: 6px;
+            color: var(--text-secondary); font-family: 'Space Mono', monospace; font-size: 0.75rem; cursor: pointer;
+            transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .deck-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+        .deck-btn.active { background: var(--accent-green); border-color: var(--accent-green); color: var(--bg-dark); }
+        .stats { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; animation: fadeIn 0.8s ease-out 0.2s both; }
+        .stat-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1.25rem; min-width: 100px; text-align: center; }
+        .stat-label { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--accent-blue); }
+        .card-container { max-width: 600px; width: 100%; margin: 0 auto; flex: 1; display: flex; flex-direction: column; animation: fadeIn 1s ease-out 0.4s both; }
+        .flashcard {
+            background: var(--bg-card); border: 2px solid var(--border); border-radius: 12px; padding: 2.5rem 2rem; min-height: 300px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; transition: all 0.3s ease;
+            position: relative; box-shadow: 0 8px 24px var(--shadow);
+        }
+        .flashcard.flipped { background: linear-gradient(135deg, var(--bg-card) 0%, #1a1f26 100%); border-color: var(--accent-blue); }
+        .card-type { position: absolute; top: 1rem; left: 1rem; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.1em; }
+        .card-number { position: absolute; top: 1rem; right: 1rem; font-size: 0.75rem; color: var(--accent-yellow); font-weight: 600; }
+        .card-content { text-align: center; width: 100%; }
+        .card-question { font-size: 1.5rem; font-weight: 700; color: var(--accent-green); margin-bottom: 1rem; font-family: 'JetBrains Mono', monospace; }
+        .card-answer { font-size: 1rem; color: var(--text-primary); margin-bottom: 1.5rem; line-height: 1.8; }
+        .card-example {
+            background: rgba(88, 166, 255, 0.1); border-left: 3px solid var(--accent-blue); padding: 1rem;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.875rem; color: var(--accent-blue); text-align: left;
+            border-radius: 4px; margin-top: 1rem; overflow-x: auto; white-space: pre-wrap;
+        }
+        .card-tip { margin-top: 1rem; padding: 0.75rem; background: rgba(63, 185, 80, 0.1); border-radius: 6px; font-size: 0.875rem; color: var(--text-secondary); font-style: italic; }
+        .answer-input-container { margin-top: 2rem; width: 100%; max-width: 400px; }
+        .answer-input {
+            width: 100%; padding: 1rem; background: rgba(88, 166, 255, 0.05); border: 2px solid var(--border); border-radius: 8px;
+            color: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 1rem; transition: all 0.3s ease; text-align: center;
+        }
+        .answer-input:focus { outline: none; border-color: var(--accent-blue); background: rgba(88, 166, 255, 0.1); }
+        .answer-input::placeholder { color: var(--text-secondary); opacity: 0.5; }
+        .show-answer-btn {
+            margin-top: 1rem; padding: 0.875rem 2rem; background: var(--accent-blue); color: var(--bg-dark); border: none;
+            border-radius: 8px; font-family: 'Space Mono', monospace; font-size: 0.875rem; font-weight: 700; cursor: pointer;
+            transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 0.05em; width: 100%;
+        }
+        .show-answer-btn:hover { background: var(--accent-green); transform: translateY(-2px); box-shadow: 0 4px 12px var(--shadow); }
+        .show-answer-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .user-answer-display {
+            margin-top: 1rem; padding: 1rem; background: rgba(63, 185, 80, 0.1); border-left: 3px solid var(--accent-green);
+            border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.875rem;
+        }
+        .user-answer-label { color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+        .user-answer-text { color: var(--accent-green); font-size: 1rem; }
+        .grade-feedback { margin-top: 1.5rem; padding: 1.5rem; border-radius: 8px; text-align: center; animation: fadeIn 0.3s ease-out; border: 2px solid; }
+        .grade-emoji { font-size: 3rem; margin-bottom: 0.5rem; display: block; }
+        .grade-label { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .buttons { display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap; justify-content: center; }
+        .btn {
+            padding: 0.875rem 1.5rem; border: 2px solid var(--border); border-radius: 8px; background: var(--bg-card);
+            color: var(--text-primary); font-family: 'Space Mono', monospace; font-size: 0.875rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 0.05em; min-width: 120px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px var(--shadow); }
+        .btn-good { border-color: var(--accent-blue); color: var(--accent-blue); }
+        .btn-good:hover { background: rgba(88, 166, 255, 0.1); border-color: var(--accent-blue); }
+        .btn-easy { border-color: var(--accent-green); color: var(--accent-green); }
+        .btn-easy:hover { background: rgba(63, 185, 80, 0.1); border-color: var(--accent-green); }
+        .completion-screen { text-align: center; padding: 2rem; animation: fadeIn 0.6s ease-out; }
+        .completion-screen h2 { font-size: 2rem; color: var(--accent-green); margin-bottom: 1rem; }
+        .completion-screen p { font-size: 1.125rem; color: var(--text-secondary); margin-bottom: 2rem; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 640px) {
+            .header h1 { font-size: 1.25rem; }
+            .flashcard { padding: 2rem 1.5rem; min-height: 250px; }
+            .card-question { font-size: 1.25rem; }
+            .buttons { gap: 0.75rem; }
+            .btn { padding: 0.75rem 1rem; font-size: 0.75rem; min-width: 100px; }
+            .deck-selector { gap: 0.5rem; }
+            .deck-btn { font-size: 0.65rem; padding: 0.4rem 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ALL DECK DATA
+        // LINUX ADVANCED COMMANDS (25 cards)
+        const linuxAdvanced = {
+            name: 'Linux Advanced',
+            cards: [
+                {
+                    id: 'la-1',
+                    category: 'Linux Advanced',
+                    question: 'grep',
+                    answer: 'Search for patterns in text',
+                    example: 'grep "error" logfile.txt\ngrep -r "TODO" .\ngrep -i "warning" *.log',
+                    tip: '-i for case-insensitive, -r for recursive search in directories'
+                },
+                {
+                    id: 'la-2',
+                    category: 'Linux Advanced',
+                    question: 'find',
+                    answer: 'Search for files and directories',
+                    example: 'find . -name "*.txt"\nfind /home -type f -mtime -7\nfind . -size +100M',
+                    tip: 'Extremely powerful! Can search by name, type, size, date, and more'
+                },
+                {
+                    id: 'la-3',
+                    category: 'Linux Advanced',
+                    question: 'ps aux',
+                    answer: 'Show all running processes with details',
+                    example: 'ps aux\nps aux | grep python\nps aux --sort=-%mem | head',
+                    tip: 'a=all users, u=user-oriented format, x=include processes without terminal'
+                },
+                {
+                    id: 'la-4',
+                    category: 'Linux Advanced',
+                    question: 'top',
+                    answer: 'Display live system resource usage and processes',
+                    example: 'top\ntop -u username',
+                    tip: 'Press q to quit, M to sort by memory, P to sort by CPU'
+                },
+                {
+                    id: 'la-5',
+                    category: 'Linux Advanced',
+                    question: 'kill',
+                    answer: 'Terminate a process by PID',
+                    example: 'kill 1234\nkill -9 1234\nkill -15 1234',
+                    tip: '-9 is SIGKILL (force), -15 is SIGTERM (graceful, default)'
+                },
+                {
+                    id: 'la-6',
+                    category: 'Linux Advanced',
+                    question: 'cat',
+                    answer: 'Display file contents',
+                    example: 'cat file.txt\ncat file1.txt file2.txt\ncat > newfile.txt',
+                    tip: 'Can concatenate multiple files. Use > to create/overwrite files'
+                },
+                {
+                    id: 'la-7',
+                    category: 'Linux Advanced',
+                    question: 'less',
+                    answer: 'View file contents with pagination',
+                    example: 'less largefile.log\nps aux | less',
+                    tip: 'Space for next page, b for back, / to search, q to quit'
+                },
+                {
+                    id: 'la-8',
+                    category: 'Linux Advanced',
+                    question: 'head',
+                    answer: 'Display first lines of a file',
+                    example: 'head file.txt\nhead -n 20 file.txt\nhead -20 file.txt',
+                    tip: 'Default shows 10 lines. Use -n to specify number'
+                },
+                {
+                    id: 'la-9',
+                    category: 'Linux Advanced',
+                    question: 'tail',
+                    answer: 'Display last lines of a file',
+                    example: 'tail file.txt\ntail -n 50 file.txt\ntail -f logfile.log',
+                    tip: '-f follows the file in real-time, perfect for monitoring logs!'
+                },
+                {
+                    id: 'la-10',
+                    category: 'Linux Advanced',
+                    question: 'wc',
+                    answer: 'Count lines, words, and characters',
+                    example: 'wc file.txt\nwc -l file.txt\nwc -w file.txt',
+                    tip: '-l counts lines, -w counts words, -c counts characters'
+                },
+                {
+                    id: 'la-11',
+                    category: 'Linux Advanced',
+                    question: 'sort',
+                    answer: 'Sort lines of text',
+                    example: 'sort names.txt\nsort -r numbers.txt\nsort -n -k2 data.txt',
+                    tip: '-r for reverse, -n for numeric sort, -k for specific column'
+                },
+                {
+                    id: 'la-12',
+                    category: 'Linux Advanced',
+                    question: 'uniq',
+                    answer: 'Remove or report duplicate lines',
+                    example: 'sort file.txt | uniq\nuniq -c file.txt\nuniq -d file.txt',
+                    tip: 'MUST be used with sorted input! Combine with sort first'
+                },
+                {
+                    id: 'la-13',
+                    category: 'Linux Advanced',
+                    question: 'cut',
+                    answer: 'Extract sections from lines of text',
+                    example: 'cut -d "," -f1,3 data.csv\ncut -c1-10 file.txt',
+                    tip: '-d sets delimiter, -f selects fields, -c selects characters'
+                },
+                {
+                    id: 'la-14',
+                    category: 'Linux Advanced',
+                    question: 'sed',
+                    answer: 'Stream editor for text transformation',
+                    example: 'sed "s/old/new/" file.txt\nsed "s/old/new/g" file.txt\nsed -i "s/old/new/g" file.txt',
+                    tip: 's/old/new/g replaces all occurrences. -i edits file in place'
+                },
+                {
+                    id: 'la-15',
+                    category: 'Linux Advanced',
+                    question: 'awk',
+                    answer: 'Pattern scanning and text processing',
+                    example: 'awk \'{print $1}\' file.txt\nawk -F"," \'{print $2}\' data.csv\nawk \'{sum+=$1} END {print sum}\' numbers.txt',
+                    tip: 'Incredibly powerful! $1, $2 = columns. Can do calculations'
+                },
+                {
+                    id: 'la-16',
+                    category: 'Linux Advanced',
+                    question: 'tar',
+                    answer: 'Archive and compress files',
+                    example: 'tar -czf archive.tar.gz folder/\ntar -xzf archive.tar.gz\ntar -tzf archive.tar.gz',
+                    tip: 'c=create, x=extract, z=gzip, f=file, t=list contents'
+                },
+                {
+                    id: 'la-17',
+                    category: 'Linux Advanced',
+                    question: 'wget',
+                    answer: 'Download files from the web',
+                    example: 'wget https://example.com/file.zip\nwget -O custom.zip https://example.com/file.zip',
+                    tip: '-O specifies output filename. Great for scripts!'
+                },
+                {
+                    id: 'la-18',
+                    category: 'Linux Advanced',
+                    question: 'curl',
+                    answer: 'Transfer data from/to servers',
+                    example: 'curl https://api.example.com\ncurl -X POST -d "data" https://api.example.com\ncurl -O https://example.com/file.zip',
+                    tip: 'More versatile than wget. Can do POST, PUT, headers, etc.'
+                },
+                {
+                    id: 'la-19',
+                    category: 'Linux Advanced',
+                    question: 'df',
+                    answer: 'Display disk space usage',
+                    example: 'df -h\ndf -h /home',
+                    tip: '-h makes it human-readable (GB/MB instead of bytes)'
+                },
+                {
+                    id: 'la-20',
+                    category: 'Linux Advanced',
+                    question: 'du',
+                    answer: 'Estimate file and directory space usage',
+                    example: 'du -sh folder/\ndu -h --max-depth=1\ndu -sh *',
+                    tip: '-s for summary, -h for human-readable. Great for finding large directories!'
+                },
+                {
+                    id: 'la-21',
+                    category: 'Linux Advanced',
+                    question: 'which',
+                    answer: 'Show full path of commands',
+                    example: 'which python\nwhich git',
+                    tip: 'Useful for finding where executables are located'
+                },
+                {
+                    id: 'la-22',
+                    category: 'Linux Advanced',
+                    question: 'man',
+                    answer: 'Display manual pages for commands',
+                    example: 'man ls\nman grep\nman man',
+                    tip: 'Your best friend! Press q to quit. Always RTFM!'
+                },
+                {
+                    id: 'la-23',
+                    category: 'Linux Advanced',
+                    question: 'sudo',
+                    answer: 'Execute command as superuser',
+                    example: 'sudo apt update\nsudo systemctl restart nginx\nsudo -i',
+                    tip: 'With great power comes great responsibility. Be careful!'
+                },
+                {
+                    id: 'la-24',
+                    category: 'Linux Advanced',
+                    question: 'ssh',
+                    answer: 'Secure shell remote login',
+                    example: 'ssh user@hostname\nssh -i keyfile.pem user@server\nssh -p 2222 user@server',
+                    tip: '-i specifies key file, -p specifies port'
+                },
+                {
+                    id: 'la-25',
+                    category: 'Linux Advanced',
+                    question: 'scp',
+                    answer: 'Securely copy files between hosts',
+                    example: 'scp file.txt user@remote:/path/\nscp user@remote:/path/file.txt .\nscp -r folder/ user@remote:/path/',
+                    tip: 'Like cp but over SSH. -r for directories'
+                }
+            ]
+        };
+        
+        // DOCKER ESSENTIALS (25 cards)
+        const dockerEssentials = {
+            name: 'Docker',
+            cards: [
+                {
+                    id: 'dk-1',
+                    category: 'Docker',
+                    question: 'docker run',
+                    answer: 'Create and start a container from an image',
+                    example: 'docker run nginx\ndocker run -d -p 8080:80 nginx\ndocker run -it ubuntu bash',
+                    tip: '-d for detached, -p for port mapping, -it for interactive terminal'
+                },
+                {
+                    id: 'dk-2',
+                    category: 'Docker',
+                    question: 'docker ps',
+                    answer: 'List running containers',
+                    example: 'docker ps\ndocker ps -a\ndocker ps -q',
+                    tip: '-a shows all (including stopped), -q shows only IDs'
+                },
+                {
+                    id: 'dk-3',
+                    category: 'Docker',
+                    question: 'docker images',
+                    answer: 'List downloaded images',
+                    example: 'docker images\ndocker images -a\ndocker images --filter "dangling=true"',
+                    tip: '-a shows all layers. Use with grep to find specific images'
+                },
+                {
+                    id: 'dk-4',
+                    category: 'Docker',
+                    question: 'docker pull',
+                    answer: 'Download an image from registry',
+                    example: 'docker pull nginx\ndocker pull ubuntu:22.04\ndocker pull myregistry.com/app:latest',
+                    tip: 'Always specify version tag in production! :latest can change'
+                },
+                {
+                    id: 'dk-5',
+                    category: 'Docker',
+                    question: 'docker stop',
+                    answer: 'Stop running container gracefully',
+                    example: 'docker stop container_name\ndocker stop $(docker ps -q)',
+                    tip: 'Sends SIGTERM, waits, then SIGKILL. Use kill for immediate stop'
+                },
+                {
+                    id: 'dk-6',
+                    category: 'Docker',
+                    question: 'docker start',
+                    answer: 'Start stopped container',
+                    example: 'docker start container_name\ndocker start -a container_name',
+                    tip: '-a attaches to the container output'
+                },
+                {
+                    id: 'dk-7',
+                    category: 'Docker',
+                    question: 'docker restart',
+                    answer: 'Restart a container',
+                    example: 'docker restart container_name\ndocker restart $(docker ps -q)',
+                    tip: 'Useful when container configuration changes'
+                },
+                {
+                    id: 'dk-8',
+                    category: 'Docker',
+                    question: 'docker rm',
+                    answer: 'Remove stopped container',
+                    example: 'docker rm container_name\ndocker rm -f container_name\ndocker rm $(docker ps -aq)',
+                    tip: '-f forces removal of running containers'
+                },
+                {
+                    id: 'dk-9',
+                    category: 'Docker',
+                    question: 'docker rmi',
+                    answer: 'Remove image',
+                    example: 'docker rmi image_name\ndocker rmi -f image_name\ndocker rmi $(docker images -q)',
+                    tip: 'Cannot remove image if containers are using it (unless -f)'
+                },
+                {
+                    id: 'dk-10',
+                    category: 'Docker',
+                    question: 'docker exec',
+                    answer: 'Execute command in running container',
+                    example: 'docker exec container_name ls\ndocker exec -it container_name bash\ndocker exec -u root container_name whoami',
+                    tip: '-it for interactive shell. Very useful for debugging!'
+                },
+                {
+                    id: 'dk-11',
+                    category: 'Docker',
+                    question: 'docker logs',
+                    answer: 'Fetch container logs',
+                    example: 'docker logs container_name\ndocker logs -f container_name\ndocker logs --tail 100 container_name',
+                    tip: '-f follows log output in real-time (like tail -f)'
+                },
+                {
+                    id: 'dk-12',
+                    category: 'Docker',
+                    question: 'docker build',
+                    answer: 'Build image from Dockerfile',
+                    example: 'docker build .\ndocker build -t myapp:1.0 .\ndocker build -f Dockerfile.prod .',
+                    tip: '-t tags the image. . is the build context (current directory)'
+                },
+                {
+                    id: 'dk-13',
+                    category: 'Docker',
+                    question: 'docker push',
+                    answer: 'Upload image to registry',
+                    example: 'docker push myuser/myapp:latest\ndocker push registry.company.com/app:v1.0',
+                    tip: 'Must login first with docker login. Tag properly before pushing'
+                },
+                {
+                    id: 'dk-14',
+                    category: 'Docker',
+                    question: 'docker-compose up',
+                    answer: 'Start services defined in docker-compose.yml',
+                    example: 'docker-compose up\ndocker-compose up -d\ndocker-compose up --build',
+                    tip: '-d for detached mode. --build rebuilds images before starting'
+                },
+                {
+                    id: 'dk-15',
+                    category: 'Docker',
+                    question: 'docker-compose down',
+                    answer: 'Stop and remove containers, networks',
+                    example: 'docker-compose down\ndocker-compose down -v\ndocker-compose down --rmi all',
+                    tip: '-v removes volumes too. --rmi all removes images'
+                },
+                {
+                    id: 'dk-16',
+                    category: 'Docker',
+                    question: 'docker network ls',
+                    answer: 'List Docker networks',
+                    example: 'docker network ls\ndocker network inspect bridge',
+                    tip: 'Containers on same network can communicate by name'
+                },
+                {
+                    id: 'dk-17',
+                    category: 'Docker',
+                    question: 'docker volume ls',
+                    answer: 'List Docker volumes',
+                    example: 'docker volume ls\ndocker volume create mydata\ndocker volume inspect mydata',
+                    tip: 'Volumes persist data even when containers are deleted'
+                },
+                {
+                    id: 'dk-18',
+                    category: 'Docker',
+                    question: 'docker inspect',
+                    answer: 'Display detailed container/image information',
+                    example: 'docker inspect container_name\ndocker inspect --format \'{{.NetworkSettings.IPAddress}}\' container',
+                    tip: 'Returns JSON. Use --format to extract specific fields'
+                },
+                {
+                    id: 'dk-19',
+                    category: 'Docker',
+                    question: 'docker cp',
+                    answer: 'Copy files between container and host',
+                    example: 'docker cp file.txt container:/path/\ndocker cp container:/app/log.txt .',
+                    tip: 'Works even with stopped containers!'
+                },
+                {
+                    id: 'dk-20',
+                    category: 'Docker',
+                    question: 'docker tag',
+                    answer: 'Create a tag for an image',
+                    example: 'docker tag myapp:latest myapp:1.0\ndocker tag myapp myregistry.com/myapp:prod',
+                    tip: 'Doesn\'t create new image, just a new reference to existing one'
+                },
+                {
+                    id: 'dk-21',
+                    category: 'Docker',
+                    question: 'docker system prune',
+                    answer: 'Remove unused data (containers, networks, images)',
+                    example: 'docker system prune\ndocker system prune -a\ndocker system prune -a --volumes',
+                    tip: 'Frees up disk space! -a removes all unused images, not just dangling'
+                },
+                {
+                    id: 'dk-22',
+                    category: 'Docker',
+                    question: 'docker stats',
+                    answer: 'Display live resource usage statistics',
+                    example: 'docker stats\ndocker stats container_name\ndocker stats --no-stream',
+                    tip: 'Shows CPU, memory, network I/O. Great for monitoring!'
+                },
+                {
+                    id: 'dk-23',
+                    category: 'Docker',
+                    question: 'EXPOSE',
+                    answer: 'Document which port container listens on (in Dockerfile)',
+                    example: 'EXPOSE 80\nEXPOSE 8080\nEXPOSE 3000 3001',
+                    tip: 'Documentation only! Still need -p flag in docker run to publish'
+                },
+                {
+                    id: 'dk-24',
+                    category: 'Docker',
+                    question: 'ENV',
+                    answer: 'Set environment variables (in Dockerfile)',
+                    example: 'ENV NODE_ENV=production\nENV PORT=8080\nENV PATH=/app/bin:$PATH',
+                    tip: 'Available to all subsequent instructions and running container'
+                },
+                {
+                    id: 'dk-25',
+                    category: 'Docker',
+                    question: 'COPY vs ADD',
+                    answer: 'COPY: simple file copy. ADD: copy + auto-extract tar/fetch URLs',
+                    example: 'COPY app.py /app/\nADD archive.tar.gz /app/\nADD https://example.com/file /app/',
+                    tip: 'Prefer COPY for clarity. Only use ADD when you need extraction/URLs'
+                }
+            ]
+        };
+        
+        // PYTHON FUNDAMENTALS (25 cards)
+        const pythonFundamentals = {
+            name: 'Python',
+            cards: [
+                {
+                    id: 'py-1',
+                    category: 'Python',
+                    question: 'list comprehension',
+                    answer: 'Concise way to create lists',
+                    example: 'squares = [x**2 for x in range(10)]\nevens = [x for x in range(20) if x % 2 == 0]\nmatrix = [[i+j for j in range(3)] for i in range(3)]',
+                    tip: 'More Pythonic and faster than for loops!'
+                },
+                {
+                    id: 'py-2',
+                    category: 'Python',
+                    question: 'dict.get()',
+                    answer: 'Safely get value from dict with default',
+                    example: 'value = my_dict.get(\'key\', \'default\')\ncount = counts.get(word, 0) + 1',
+                    tip: 'Prevents KeyError! Much better than checking "if key in dict"'
+                },
+                {
+                    id: 'py-3',
+                    category: 'Python',
+                    question: 'enumerate()',
+                    answer: 'Loop with index and value',
+                    example: 'for i, item in enumerate(items):\n    print(f"{i}: {item}")\nfor i, char in enumerate(\'hello\', start=1):\n    print(i, char)',
+                    tip: 'More Pythonic than range(len(items))!'
+                },
+                {
+                    id: 'py-4',
+                    category: 'Python',
+                    question: 'zip()',
+                    answer: 'Combine multiple iterables',
+                    example: 'names = [\'Alice\', \'Bob\']\nages = [25, 30]\nfor name, age in zip(names, ages):\n    print(f"{name} is {age}")',
+                    tip: 'Stops at shortest iterable. Use itertools.zip_longest for longest'
+                },
+                {
+                    id: 'py-5',
+                    category: 'Python',
+                    question: 'lambda',
+                    answer: 'Anonymous inline function',
+                    example: 'square = lambda x: x**2\nsorted_list = sorted(items, key=lambda x: x[1])\nfiltered = filter(lambda x: x > 0, numbers)',
+                    tip: 'Great for simple functions used once. Use def for complex logic'
+                },
+                {
+                    id: 'py-6',
+                    category: 'Python',
+                    question: 'map()',
+                    answer: 'Apply function to all items',
+                    example: 'squared = list(map(lambda x: x**2, [1,2,3]))\nuppercase = list(map(str.upper, words))',
+                    tip: 'Returns iterator, wrap with list() to get list'
+                },
+                {
+                    id: 'py-7',
+                    category: 'Python',
+                    question: 'filter()',
+                    answer: 'Keep items that match condition',
+                    example: 'evens = list(filter(lambda x: x % 2 == 0, numbers))\nlong_words = list(filter(lambda w: len(w) > 5, words))',
+                    tip: 'Often list comprehension with if is more readable'
+                },
+                {
+                    id: 'py-8',
+                    category: 'Python',
+                    question: '*args',
+                    answer: 'Variable number of positional arguments',
+                    example: 'def sum_all(*args):\n    return sum(args)\nsum_all(1, 2, 3, 4, 5)',
+                    tip: 'args is a tuple containing all positional arguments'
+                },
+                {
+                    id: 'py-9',
+                    category: 'Python',
+                    question: '**kwargs',
+                    answer: 'Variable number of keyword arguments',
+                    example: 'def print_info(**kwargs):\n    for key, value in kwargs.items():\n        print(f"{key}: {value}")\nprint_info(name=\'Alice\', age=25)',
+                    tip: 'kwargs is a dict containing all keyword arguments'
+                },
+                {
+                    id: 'py-10',
+                    category: 'Python',
+                    question: 'with statement',
+                    answer: 'Context manager for resource handling',
+                    example: 'with open(\'file.txt\') as f:\n    data = f.read()\nwith open(\'out.txt\', \'w\') as f:\n    f.write(data)',
+                    tip: 'Automatically closes file even if error occurs. Always use with for files!'
+                },
+                {
+                    id: 'py-11',
+                    category: 'Python',
+                    question: 'try/except',
+                    answer: 'Handle exceptions gracefully',
+                    example: 'try:\n    result = risky_operation()\nexcept ValueError as e:\n    print(f"Error: {e}")\nfinally:\n    cleanup()',
+                    tip: 'Be specific with exception types! Avoid bare except:'
+                },
+                {
+                    id: 'py-12',
+                    category: 'Python',
+                    question: 'list slicing',
+                    answer: 'Extract portion of list',
+                    example: 'first_three = items[:3]\nlast_two = items[-2:]\nreversed = items[::-1]\nevery_other = items[::2]',
+                    tip: '[start:stop:step] - stop is exclusive!'
+                },
+                {
+                    id: 'py-13',
+                    category: 'Python',
+                    question: 'f-strings',
+                    answer: 'Formatted string literals (Python 3.6+)',
+                    example: 'name = "Alice"\nage = 25\nprint(f"{name} is {age} years old")\nprint(f"2 + 2 = {2+2}")',
+                    tip: 'Faster and more readable than .format() or %!'
+                },
+                {
+                    id: 'py-14',
+                    category: 'Python',
+                    question: 'sets',
+                    answer: 'Unordered collection of unique items',
+                    example: 'unique = set([1,2,2,3,3,3])\na = {1,2,3}\nb = {3,4,5}\ncommon = a & b\nunion = a | b',
+                    tip: 'Fast membership testing! O(1) instead of O(n) for lists'
+                },
+                {
+                    id: 'py-15',
+                    category: 'Python',
+                    question: 'dict comprehension',
+                    answer: 'Concise way to create dictionaries',
+                    example: 'squares = {x: x**2 for x in range(5)}\nfiltered = {k:v for k,v in items.items() if v > 10}',
+                    tip: 'Works like list comprehension but creates dict'
+                },
+                {
+                    id: 'py-16',
+                    category: 'Python',
+                    question: 'any() and all()',
+                    answer: 'Test if any/all items are True',
+                    example: 'has_even = any(x % 2 == 0 for x in numbers)\nall_positive = all(x > 0 for x in numbers)',
+                    tip: 'Short-circuit evaluation! Stops as soon as answer is known'
+                },
+                {
+                    id: 'py-17',
+                    category: 'Python',
+                    question: '_ (underscore)',
+                    answer: 'Throwaway variable or last result in interpreter',
+                    example: 'for _ in range(5):\n    print("Hello")\nfirst, _, third = (1, 2, 3)\n# In REPL: _ holds last result',
+                    tip: 'Convention for variables you don\'t care about'
+                },
+                {
+                    id: 'py-18',
+                    category: 'Python',
+                    question: 'yield',
+                    answer: 'Create generator function',
+                    example: 'def count_up(n):\n    i = 0\n    while i < n:\n        yield i\n        i += 1\nfor num in count_up(5):\n    print(num)',
+                    tip: 'Memory efficient! Produces values on-demand instead of storing all'
+                },
+                {
+                    id: 'py-19',
+                    category: 'Python',
+                    question: '@property',
+                    answer: 'Define getter method as attribute',
+                    example: 'class Circle:\n    def __init__(self, radius):\n        self.radius = radius\n    @property\n    def area(self):\n        return 3.14 * self.radius ** 2',
+                    tip: 'Access like attribute: circle.area (no parentheses!)'
+                },
+                {
+                    id: 'py-20',
+                    category: 'Python',
+                    question: '__init__',
+                    answer: 'Constructor method for classes',
+                    example: 'class Person:\n    def __init__(self, name, age):\n        self.name = name\n        self.age = age\np = Person("Alice", 25)',
+                    tip: 'self is the instance. Always first parameter!'
+                },
+                {
+                    id: 'py-21',
+                    category: 'Python',
+                    question: '__str__ vs __repr__',
+                    answer: '__str__ for display, __repr__ for debugging',
+                    example: 'class Point:\n    def __str__(self):\n        return f"({self.x}, {self.y})"\n    def __repr__(self):\n        return f"Point(x={self.x}, y={self.y})"',
+                    tip: '__str__ is what print() shows. __repr__ should be unambiguous'
+                },
+                {
+                    id: 'py-22',
+                    category: 'Python',
+                    question: 'is vs ==',
+                    answer: 'is checks identity, == checks equality',
+                    example: 'a = [1,2,3]\nb = [1,2,3]\na == b  # True\na is b  # False\nx = None\nif x is None:  # Correct!',
+                    tip: 'Use is for None, True, False. Use == for values'
+                },
+                {
+                    id: 'py-23',
+                    category: 'Python',
+                    question: 'None',
+                    answer: 'Python\'s null/nil value',
+                    example: 'def maybe_return():\n    if condition:\n        return value\n    return None\nif result is None:\n    handle_error()',
+                    tip: 'Functions return None by default if no return statement'
+                },
+                {
+                    id: 'py-24',
+                    category: 'Python',
+                    question: 'sorted() vs .sort()',
+                    answer: 'sorted() returns new list, .sort() modifies in-place',
+                    example: 'new_list = sorted(items)\nitems.sort()  # modifies items\nsorted(items, reverse=True)\nsorted(items, key=len)',
+                    tip: '.sort() is faster and uses less memory. sorted() works on any iterable'
+                },
+                {
+                    id: 'py-25',
+                    category: 'Python',
+                    question: 'range()',
+                    answer: 'Generate sequence of numbers',
+                    example: 'range(5)  # 0,1,2,3,4\nrange(2, 8)  # 2,3,4,5,6,7\nrange(0, 10, 2)  # 0,2,4,6,8\nfor i in range(len(items)):',
+                    tip: 'range(start, stop, step). Stop is exclusive! Returns iterator, not list'
+                }
+            ]
+        };
+        
+        // GIT MASTERY (25 cards)
+        const gitMastery = {
+            name: 'Git',
+            cards: [
+                {
+                    id: 'gt-1',
+                    category: 'Git',
+                    question: 'git init',
+                    answer: 'Initialize new Git repository',
+                    example: 'git init\ngit init my-project',
+                    tip: 'Creates .git directory. Only needed once per repo'
+                },
+                {
+                    id: 'gt-2',
+                    category: 'Git',
+                    question: 'git clone',
+                    answer: 'Copy remote repository to local machine',
+                    example: 'git clone https://github.com/user/repo.git\ngit clone git@github.com:user/repo.git\ngit clone https://github.com/user/repo.git mydir',
+                    tip: 'Automatically sets up remote tracking'
+                },
+                {
+                    id: 'gt-3',
+                    category: 'Git',
+                    question: 'git status',
+                    answer: 'Show working directory status',
+                    example: 'git status\ngit status -s  # short format',
+                    tip: 'Your most-used command! Shows staged, unstaged, untracked files'
+                },
+                {
+                    id: 'gt-4',
+                    category: 'Git',
+                    question: 'git add',
+                    answer: 'Stage changes for commit',
+                    example: 'git add file.txt\ngit add .\ngit add -A\ngit add -p  # interactive',
+                    tip: '. adds current directory. -A adds all changes. -p lets you pick chunks'
+                },
+                {
+                    id: 'gt-5',
+                    category: 'Git',
+                    question: 'git commit',
+                    answer: 'Save staged changes to repository',
+                    example: 'git commit -m "Add feature"\ngit commit -am "Fix bug"\ngit commit --amend',
+                    tip: '-a stages all tracked files. --amend edits last commit'
+                },
+                {
+                    id: 'gt-6',
+                    category: 'Git',
+                    question: 'git push',
+                    answer: 'Upload local commits to remote',
+                    example: 'git push\ngit push origin main\ngit push -u origin feature-branch\ngit push --force',
+                    tip: '-u sets upstream tracking. --force is dangerous, use carefully!'
+                },
+                {
+                    id: 'gt-7',
+                    category: 'Git',
+                    question: 'git pull',
+                    answer: 'Fetch and merge remote changes',
+                    example: 'git pull\ngit pull origin main\ngit pull --rebase',
+                    tip: 'Equivalent to git fetch + git merge. Use --rebase to avoid merge commits'
+                },
+                {
+                    id: 'gt-8',
+                    category: 'Git',
+                    question: 'git fetch',
+                    answer: 'Download remote changes without merging',
+                    example: 'git fetch\ngit fetch origin\ngit fetch --all',
+                    tip: 'Safer than pull. Lets you review changes before merging'
+                },
+                {
+                    id: 'gt-9',
+                    category: 'Git',
+                    question: 'git branch',
+                    answer: 'List, create, or delete branches',
+                    example: 'git branch\ngit branch feature-name\ngit branch -d branch-name\ngit branch -a',
+                    tip: '-d deletes merged branch. -D force deletes. -a shows all including remote'
+                },
+                {
+                    id: 'gt-10',
+                    category: 'Git',
+                    question: 'git checkout',
+                    answer: 'Switch branches or restore files',
+                    example: 'git checkout branch-name\ngit checkout -b new-branch\ngit checkout -- file.txt\ngit checkout HEAD~1',
+                    tip: '-b creates and switches to new branch. -- restores file from last commit'
+                },
+                {
+                    id: 'gt-11',
+                    category: 'Git',
+                    question: 'git switch',
+                    answer: 'Switch branches (newer, clearer than checkout)',
+                    example: 'git switch branch-name\ngit switch -c new-branch\ngit switch -',
+                    tip: 'Git 2.23+. Clearer than checkout. - switches to previous branch'
+                },
+                {
+                    id: 'gt-12',
+                    category: 'Git',
+                    question: 'git merge',
+                    answer: 'Combine branches',
+                    example: 'git merge feature-branch\ngit merge --no-ff feature\ngit merge --squash feature',
+                    tip: '--no-ff creates merge commit. --squash combines all commits into one'
+                },
+                {
+                    id: 'gt-13',
+                    category: 'Git',
+                    question: 'git rebase',
+                    answer: 'Reapply commits on top of another base',
+                    example: 'git rebase main\ngit rebase -i HEAD~3\ngit rebase --continue',
+                    tip: 'Creates linear history. -i for interactive (squash, edit, reorder commits)'
+                },
+                {
+                    id: 'gt-14',
+                    category: 'Git',
+                    question: 'git log',
+                    answer: 'Show commit history',
+                    example: 'git log\ngit log --oneline\ngit log --graph --all\ngit log -p file.txt',
+                    tip: '--oneline is concise. --graph shows branches. -p shows diffs'
+                },
+                {
+                    id: 'gt-15',
+                    category: 'Git',
+                    question: 'git diff',
+                    answer: 'Show changes between commits, branches, files',
+                    example: 'git diff\ngit diff --staged\ngit diff branch1..branch2\ngit diff HEAD~1 HEAD',
+                    tip: 'No args shows unstaged changes. --staged shows staged changes'
+                },
+                {
+                    id: 'gt-16',
+                    category: 'Git',
+                    question: 'git stash',
+                    answer: 'Temporarily save uncommitted changes',
+                    example: 'git stash\ngit stash pop\ngit stash list\ngit stash apply stash@{0}',
+                    tip: 'Great when you need to switch branches but aren\'t ready to commit'
+                },
+                {
+                    id: 'gt-17',
+                    category: 'Git',
+                    question: 'git reset',
+                    answer: 'Undo commits or unstage files',
+                    example: 'git reset file.txt  # unstage\ngit reset --soft HEAD~1\ngit reset --hard HEAD~1',
+                    tip: '--soft keeps changes staged. --hard deletes changes! Be careful!'
+                },
+                {
+                    id: 'gt-18',
+                    category: 'Git',
+                    question: 'git revert',
+                    answer: 'Create new commit that undoes previous commit',
+                    example: 'git revert HEAD\ngit revert abc123\ngit revert --no-commit HEAD~3..HEAD',
+                    tip: 'Safer than reset for published commits. Creates new commit, no rewriting history'
+                },
+                {
+                    id: 'gt-19',
+                    category: 'Git',
+                    question: 'git cherry-pick',
+                    answer: 'Apply specific commit from another branch',
+                    example: 'git cherry-pick abc123\ngit cherry-pick abc123..def456',
+                    tip: 'Useful for applying hotfixes or specific features across branches'
+                },
+                {
+                    id: 'gt-20',
+                    category: 'Git',
+                    question: 'git remote',
+                    answer: 'Manage remote repositories',
+                    example: 'git remote -v\ngit remote add origin https://...\ngit remote remove origin\ngit remote set-url origin https://...',
+                    tip: '-v shows URLs. origin is conventional name for main remote'
+                },
+                {
+                    id: 'gt-21',
+                    category: 'Git',
+                    question: 'git tag',
+                    answer: 'Mark specific points in history',
+                    example: 'git tag v1.0.0\ngit tag -a v1.0.0 -m "Release 1.0"\ngit push origin v1.0.0\ngit push origin --tags',
+                    tip: '-a creates annotated tag with message. Use for releases!'
+                },
+                {
+                    id: 'gt-22',
+                    category: 'Git',
+                    question: '.gitignore',
+                    answer: 'Specify files to ignore',
+                    example: '*.log\nnode_modules/\n.env\n!important.log\ntmp/**',
+                    tip: 'Add before committing! Can\'t ignore already-tracked files'
+                },
+                {
+                    id: 'gt-23',
+                    category: 'Git',
+                    question: 'git blame',
+                    answer: 'Show who last modified each line',
+                    example: 'git blame file.txt\ngit blame -L 10,20 file.txt\ngit blame -w file.txt',
+                    tip: 'Not for blaming! For understanding history. -w ignores whitespace'
+                },
+                {
+                    id: 'gt-24',
+                    category: 'Git',
+                    question: 'git bisect',
+                    answer: 'Binary search to find bug-introducing commit',
+                    example: 'git bisect start\ngit bisect bad\ngit bisect good abc123\n# test, then: git bisect good/bad\ngit bisect reset',
+                    tip: 'Incredibly powerful for finding when bugs were introduced'
+                },
+                {
+                    id: 'gt-25',
+                    category: 'Git',
+                    question: 'HEAD',
+                    answer: 'Reference to current commit',
+                    example: 'git checkout HEAD~1\ngit reset HEAD~2\ngit diff HEAD^ HEAD',
+                    tip: 'HEAD~1 or HEAD^ = parent. HEAD~2 = grandparent. HEAD~n = n commits back'
+                }
+            ]
+        };
+        
+        // SPANISH VERBS - PRESENT TENSE (25 cards)
+        const spanishVerbs = {
+            name: 'Spanish Verbs',
+            cards: [
+                {
+                    id: 'es-1',
+                    category: 'Spanish Verbs',
+                    question: 'ser (to be - permanent)',
+                    answer: 'soy, eres, es, somos, sois, son',
+                    example: 'Yo soy estudiante\nTú eres inteligente\nÉl es doctor',
+                    tip: 'Use for identity, origin, characteristics. "Soy de Noruega" = I\'m from Norway'
+                },
+                {
+                    id: 'es-2',
+                    category: 'Spanish Verbs',
+                    question: 'estar (to be - temporary)',
+                    answer: 'estoy, estás, está, estamos, estáis, están',
+                    example: 'Estoy cansado\nEstás en casa\nEstá lloviendo',
+                    tip: 'Use for location, condition, emotions. "Estoy listo" = I\'m ready'
+                },
+                {
+                    id: 'es-3',
+                    category: 'Spanish Verbs',
+                    question: 'tener (to have)',
+                    answer: 'tengo, tienes, tiene, tenemos, tenéis, tienen',
+                    example: 'Tengo hambre\nTienes razón\nTiene 25 años',
+                    tip: 'Used in many idioms! "Tener que" = to have to. "Tener hambre" = to be hungry'
+                },
+                {
+                    id: 'es-4',
+                    category: 'Spanish Verbs',
+                    question: 'hacer (to do/make)',
+                    answer: 'hago, haces, hace, hacemos, hacéis, hacen',
+                    example: 'Hago ejercicio\n¿Qué haces?\nHace frío',
+                    tip: 'Also used for weather! "Hace calor" = It\'s hot'
+                },
+                {
+                    id: 'es-5',
+                    category: 'Spanish Verbs',
+                    question: 'ir (to go)',
+                    answer: 'voy, vas, va, vamos, vais, van',
+                    example: 'Voy al trabajo\nVas a la escuela\nVamos a la playa',
+                    tip: 'Irregular! "Ir a + infinitive" = going to do something (future)'
+                },
+                {
+                    id: 'es-6',
+                    category: 'Spanish Verbs',
+                    question: 'poder (to be able/can)',
+                    answer: 'puedo, puedes, puede, podemos, podéis, pueden',
+                    example: 'Puedo ayudarte\n¿Puedes venir?\nNo puede dormir',
+                    tip: 'Stem-changing o→ue! Very useful verb'
+                },
+                {
+                    id: 'es-7',
+                    category: 'Spanish Verbs',
+                    question: 'querer (to want/love)',
+                    answer: 'quiero, quieres, quiere, queremos, queréis, quieren',
+                    example: 'Quiero café\n¿Quieres bailar?\nTe quiero',
+                    tip: 'Stem-changing e→ie! "Te quiero" = I love you (informal)'
+                },
+                {
+                    id: 'es-8',
+                    category: 'Spanish Verbs',
+                    question: 'decir (to say/tell)',
+                    answer: 'digo, dices, dice, decimos, decís, dicen',
+                    example: 'Digo la verdad\n¿Qué dices?\nDice que sí',
+                    tip: 'Irregular first person + stem-changing e→i'
+                },
+                {
+                    id: 'es-9',
+                    category: 'Spanish Verbs',
+                    question: 'dar (to give)',
+                    answer: 'doy, das, da, damos, dais, dan',
+                    example: 'Doy un regalo\nDas las gracias\nDa miedo',
+                    tip: 'Short but irregular! "Dar las gracias" = to thank'
+                },
+                {
+                    id: 'es-10',
+                    category: 'Spanish Verbs',
+                    question: 'ver (to see)',
+                    answer: 'veo, ves, ve, vemos, veis, ven',
+                    example: 'Veo la televisión\n¿Ves a Juan?\nVemos una película',
+                    tip: 'Irregular first person. "A ver" = let\'s see'
+                },
+                {
+                    id: 'es-11',
+                    category: 'Spanish Verbs',
+                    question: 'saber (to know - facts)',
+                    answer: 'sé, sabes, sabe, sabemos, sabéis, saben',
+                    example: 'Sé la respuesta\n¿Sabes español?\nSabe cocinar',
+                    tip: 'For facts/how to do something. "No sé" = I don\'t know'
+                },
+                {
+                    id: 'es-12',
+                    category: 'Spanish Verbs',
+                    question: 'conocer (to know - people/places)',
+                    answer: 'conozco, conoces, conoce, conocemos, conocéis, conocen',
+                    example: 'Conozco a María\nConoces Barcelona\nConocemos el problema',
+                    tip: 'For people, places. Irregular first person. Use "a" before people'
+                },
+                {
+                    id: 'es-13',
+                    category: 'Spanish Verbs',
+                    question: 'poner (to put/place)',
+                    answer: 'pongo, pones, pone, ponemos, ponéis, ponen',
+                    example: 'Pongo la mesa\nPones música\nSe pone triste',
+                    tip: 'Irregular first person. "Ponerse" = to become/get'
+                },
+                {
+                    id: 'es-14',
+                    category: 'Spanish Verbs',
+                    question: 'salir (to leave/go out)',
+                    answer: 'salgo, sales, sale, salimos, salís, salen',
+                    example: 'Salgo a las 8\nSales con amigos\nSale el sol',
+                    tip: 'Irregular first person. "Salir con" = to go out with/date'
+                },
+                {
+                    id: 'es-15',
+                    category: 'Spanish Verbs',
+                    question: 'venir (to come)',
+                    answer: 'vengo, vienes, viene, venimos, venís, vienen',
+                    example: 'Vengo mañana\n¿Vienes conmigo?\nViene de Oslo',
+                    tip: 'Irregular + stem-changing e→ie! Opposite of ir (to go)'
+                },
+                {
+                    id: 'es-16',
+                    category: 'Spanish Verbs',
+                    question: 'hablar (to speak)',
+                    answer: 'hablo, hablas, habla, hablamos, habláis, hablan',
+                    example: 'Hablo español\nHablas inglés\nHablamos por teléfono',
+                    tip: 'Regular -ar verb! Good model for others'
+                },
+                {
+                    id: 'es-17',
+                    category: 'Spanish Verbs',
+                    question: 'comer (to eat)',
+                    answer: 'como, comes, come, comemos, coméis, comen',
+                    example: 'Como pizza\n¿Comes carne?\nComemos juntos',
+                    tip: 'Regular -er verb! Model for conjugation'
+                },
+                {
+                    id: 'es-18',
+                    category: 'Spanish Verbs',
+                    question: 'vivir (to live)',
+                    answer: 'vivo, vives, vive, vivimos, vivís, viven',
+                    example: 'Vivo en Oslo\nVives en España\nVivimos aquí',
+                    tip: 'Regular -ir verb! Perfect conjugation model'
+                },
+                {
+                    id: 'es-19',
+                    category: 'Spanish Verbs',
+                    question: 'trabajar (to work)',
+                    answer: 'trabajo, trabajas, trabaja, trabajamos, trabajáis, trabajan',
+                    example: 'Trabajo en casa\nTrabajas mucho\nTrabajamos juntos',
+                    tip: 'Regular -ar. Very common verb!'
+                },
+                {
+                    id: 'es-20',
+                    category: 'Spanish Verbs',
+                    question: 'pensar (to think)',
+                    answer: 'pienso, piensas, piensa, pensamos, pensáis, piensan',
+                    example: 'Pienso en ti\n¿Qué piensas?\nPensamos viajar',
+                    tip: 'Stem-changing e→ie! "Pensar en" = to think about'
+                },
+                {
+                    id: 'es-21',
+                    category: 'Spanish Verbs',
+                    question: 'encontrar (to find)',
+                    answer: 'encuentro, encuentras, encuentra, encontramos, encontráis, encuentran',
+                    example: 'Encuentro las llaves\nEncuentras trabajo\nNos encontramos aquí',
+                    tip: 'Stem-changing o→ue! "Encontrarse" = to meet up'
+                },
+                {
+                    id: 'es-22',
+                    category: 'Spanish Verbs',
+                    question: 'entender (to understand)',
+                    answer: 'entiendo, entiendes, entiende, entendemos, entendéis, entienden',
+                    example: 'Entiendo español\n¿Entiendes?\nNo entiende nada',
+                    tip: 'Stem-changing e→ie! "No entiendo" = I don\'t understand'
+                },
+                {
+                    id: 'es-23',
+                    category: 'Spanish Verbs',
+                    question: 'preferir (to prefer)',
+                    answer: 'prefiero, prefieres, prefiere, preferimos, preferís, prefieren',
+                    example: 'Prefiero café\n¿Prefieres té?\nPreferimos quedarnos',
+                    tip: 'Stem-changing e→ie! Very useful for expressing preferences'
+                },
+                {
+                    id: 'es-24',
+                    category: 'Spanish Verbs',
+                    question: 'sentir (to feel)',
+                    answer: 'siento, sientes, siente, sentimos, sentís, sienten',
+                    example: 'Lo siento\n¿Cómo te sientes?\nSiente frío',
+                    tip: 'Stem-changing e→ie! "Lo siento" = I\'m sorry'
+                },
+                {
+                    id: 'es-25',
+                    category: 'Spanish Verbs',
+                    question: 'dormir (to sleep)',
+                    answer: 'duermo, duermes, duerme, dormimos, dormís, duermen',
+                    example: 'Duermo bien\n¿Duermes?\nDuerme 8 horas',
+                    tip: 'Stem-changing o→ue! "Dormirse" = to fall asleep'
+                }
+            ]
+        };
+        
+        
+        // Convert deck objects to ALL_DECKS format
+        const ALL_DECKS = {
+            'file-manipulation': {
+                name: 'File Manipulation',
+                cards: [
+                    { id: 'fm-1', category: 'File Manipulation', question: 'cp', answer: 'Copy files or directories',
+                      example: 'cp file.txt backup.txt\ncp -r folder/ backup_folder/', tip: 'Use -r flag for directories (recursive), -v for verbose output' },
+                    { id: 'fm-2', category: 'File Manipulation', question: 'mv', answer: 'Move or rename files/directories',
+                      example: 'mv oldname.txt newname.txt\nmv file.txt /home/user/documents/', tip: 'No need for -r flag! mv works on directories by default' },
+                    { id: 'fm-3', category: 'File Manipulation', question: 'mkdir -p', answer: 'Create directories, including parent directories',
+                      example: 'mkdir -p projects/web/css', tip: 'The -p flag creates all necessary parent directories in one go' },
+                    { id: 'fm-4', category: 'File Manipulation', question: 'rm', answer: 'Remove files or directories',
+                      example: 'rm file.txt\nrm -r folder/\nrm -rf dangerous_folder/', tip: 'WARNING: -rf is permanent! No undo. Double-check before hitting enter.' },
+                    { id: 'fm-5', category: 'File Manipulation', question: 'touch', answer: 'Create empty file or update timestamp',
+                      example: 'touch newfile.txt\ntouch file1.txt file2.txt file3.txt', tip: 'Great for quickly creating multiple empty files at once' },
+                    { id: 'fm-6', category: 'File Manipulation', question: 'chmod', answer: 'Change file permissions',
+                      example: 'chmod 755 script.sh\nchmod u+x program', tip: '755 = rwxr-xr-x (owner: all, group/others: read+execute)' },
+                    { id: 'fm-7', category: 'File Manipulation', question: 'chown', answer: 'Change file owner and group',
+                      example: 'chown user:group file.txt\nsudo chown -R user:user folder/', tip: 'Often requires sudo. -R for recursive directory changes' },
+                    { id: 'fm-8', category: 'File Manipulation', question: 'ln -s', answer: 'Create symbolic link (symlink)',
+                      example: 'ln -s /path/to/original linkname', tip: 'Think of it as a shortcut. Always use absolute paths to avoid confusion!' }
+                ]
+            },
+            'linux-advanced': linuxAdvanced,
+            'docker': dockerEssentials,
+            'python': pythonFundamentals,
+            'git': gitMastery,
+            'spanish-verbs': spanishVerbs
+        };
+        
+        // Similarity calculation
+        const calculateSimilarity = (str1, str2) => {
+            const s1 = str1.toLowerCase().trim();
+            const s2 = str2.toLowerCase().trim();
+            if (s1 === s2) return 1.0;
+            if (s1.includes(s2) || s2.includes(s1)) {
+                return Math.max(s2.length / s1.length, s1.length / s2.length) * 0.85;
+            }
+            const chars1 = new Set(s1.split(''));
+            const chars2 = new Set(s2.split(''));
+            const intersection = new Set([...chars1].filter(x => chars2.has(x)));
+            const union = new Set([...chars1, ...chars2]);
+            return intersection.size / union.size;
+        };
+        
+        const gradeAnswer = (userAnswer, correctAnswer) => {
+            const similarity = calculateSimilarity(userAnswer, correctAnswer);
+            if (similarity >= 0.85) return { quality: 5, label: 'Perfect!', color: 'var(--accent-green)', emoji: '✓' };
+            else if (similarity >= 0.65) return { quality: 4, label: 'Close enough!', color: 'var(--accent-blue)', emoji: '~' };
+            else if (similarity >= 0.35) return { quality: 3, label: 'Partial credit', color: 'var(--accent-yellow)', emoji: '±' };
+            else return { quality: 1, label: 'Not quite...', color: '#da3633', emoji: '✗' };
+        };
+        
+        const calculateNextReview = (quality, interval, repetitions, easeFactor) => {
+            let newInterval = interval, newRepetitions = repetitions, newEaseFactor = easeFactor;
+            if (quality >= 3) {
+                if (newRepetitions === 0) newInterval = 1;
+                else if (newRepetitions === 1) newInterval = 6;
+                else newInterval = Math.round(interval * easeFactor);
+                newRepetitions += 1;
+            } else {
+                newRepetitions = 0;
+                newInterval = 1;
+            }
+            newEaseFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+            if (newEaseFactor < 1.3) newEaseFactor = 1.3;
+            return { interval: newInterval, repetitions: newRepetitions, easeFactor: newEaseFactor,
+                     nextReview: Date.now() + (newInterval * 24 * 60 * 60 * 1000) };
+        };
+        
+        function FlashcardApp() {
+            const [allDecks] = useState(ALL_DECKS);
+            const [selectedDeck, setSelectedDeck] = useState('file-manipulation');
+            const [cards, setCards] = useState([]);
+            const [currentCardIndex, setCurrentCardIndex] = useState(0);
+            const [isFlipped, setIsFlipped] = useState(false);
+            const [userAnswer, setUserAnswer] = useState('');
+            const [gradeResult, setGradeResult] = useState(null);
+            const [stats, setStats] = useState({ total: 0, learned: 0, reviewing: 0 });
+            const [sessionComplete, setSessionComplete] = useState(false);
+            
+            useEffect(() => {
+                if (!allDecks[selectedDeck]) return;
+                const saved = localStorage.getItem('flashcardProgress');
+                const deckCards = allDecks[selectedDeck].cards;
+                if (saved) {
+                    const progress = JSON.parse(saved);
+                    const enrichedCards = deckCards.map(card => ({
+                        ...card, interval: progress[card.id]?.interval || 0,
+                        repetitions: progress[card.id]?.repetitions || 0,
+                        easeFactor: progress[card.id]?.easeFactor || 2.5,
+                        nextReview: progress[card.id]?.nextReview || Date.now()
+                    }));
+                    const dueCards = enrichedCards.filter(c => c.nextReview <= Date.now());
+                    setCards(dueCards.length > 0 ? dueCards : enrichedCards.slice(0, 5));
+                    updateStats(enrichedCards);
+                } else {
+                    const newCards = deckCards.map(card => ({
+                        ...card, interval: 0, repetitions: 0, easeFactor: 2.5, nextReview: Date.now()
+                    }));
+                    setCards(newCards);
+                    updateStats(newCards);
+                }
+                setCurrentCardIndex(0); setIsFlipped(false); setUserAnswer(''); setGradeResult(null); setSessionComplete(false);
+            }, [selectedDeck, allDecks]);
+            
+            const updateStats = (allCards) => {
+                const total = allCards.length;
+                const learned = allCards.filter(c => c.repetitions >= 3).length;
+                const reviewing = allCards.filter(c => c.repetitions > 0 && c.repetitions < 3).length;
+                setStats({ total, learned, reviewing });
+            };
+            
+            const handleRating = (quality) => {
+                const currentCard = cards[currentCardIndex];
+                const updated = calculateNextReview(quality, currentCard.interval, currentCard.repetitions, currentCard.easeFactor);
+                const saved = JSON.parse(localStorage.getItem('flashcardProgress') || '{}');
+                saved[currentCard.id] = updated;
+                localStorage.setItem('flashcardProgress', JSON.stringify(saved));
+                const updatedCard = { ...currentCard, ...updated };
+                const newCards = [...cards];
+                newCards[currentCardIndex] = updatedCard;
+                if (currentCardIndex < cards.length - 1) {
+                    setCurrentCardIndex(currentCardIndex + 1); setIsFlipped(false); setUserAnswer(''); setGradeResult(null);
+                } else {
+                    setSessionComplete(true);
+                }
+                const allCards = allDecks[selectedDeck].cards.map(card => {
+                    const progress = saved[card.id];
+                    return progress ? { ...card, ...progress } : card;
+                });
+                updateStats(allCards);
+            };
+            
+            const handleShowAnswer = () => {
+                const currentCard = cards[currentCardIndex];
+                const grade = gradeAnswer(userAnswer, currentCard.answer);
+                setGradeResult(grade); setIsFlipped(true);
+            };
+            
+            const handleNextCard = () => {
+                if (!gradeResult) return;
+                handleRating(gradeResult.quality);
+            };
+            
+            const resetSession = () => {
+                const deckCards = allDecks[selectedDeck].cards;
+                const saved = JSON.parse(localStorage.getItem('flashcardProgress') || '{}');
+                const allCards = deckCards.map(card => {
+                    const progress = saved[card.id];
+                    return progress ? { ...card, ...progress} : {
+                        ...card, interval: 0, repetitions: 0, easeFactor: 2.5, nextReview: Date.now()
+                    };
+                });
+                const dueCards = allCards.filter(c => c.nextReview <= Date.now());
+                setCards(dueCards.length > 0 ? dueCards : allCards.slice(0, 5));
+                setCurrentCardIndex(0); setIsFlipped(false); setUserAnswer(''); setGradeResult(null); setSessionComplete(false);
+                updateStats(allCards);
+            };
+            
+            if (sessionComplete) {
+                return (
+                    <div>
+                        <div className="header">
+                            <h1>$ Terminal Flashcards</h1>
+                            <p>Master anything, one card at a time</p>
+                        </div>
+                        <div className="deck-selector">
+                            {Object.keys(allDecks).map(deckId => (
+                                <button key={deckId} className={`deck-btn ${selectedDeck === deckId ? 'active' : ''}`}
+                                    onClick={() => setSelectedDeck(deckId)}>{allDecks[deckId].name}</button>
+                            ))}
+                        </div>
+                        <div className="stats">
+                            <div className="stat-box"><div className="stat-label">Total</div><div className="stat-value">{stats.total}</div></div>
+                            <div className="stat-box"><div className="stat-label">Learned</div><div className="stat-value">{stats.learned}</div></div>
+                            <div className="stat-box"><div className="stat-label">Reviewing</div><div className="stat-value">{stats.reviewing}</div></div>
+                        </div>
+                        <div className="card-container">
+                            <div className="completion-screen">
+                                <h2>Session Complete! 🎉</h2>
+                                <p>You've reviewed all due cards. Excellent work!</p>
+                                <button className="btn btn-easy" onClick={resetSession}>Review More</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            
+            if (cards.length === 0) return <div className="header"><h1>$ Terminal Flashcards</h1><p>Loading your deck...</p></div>;
+            
+            const currentCard = cards[currentCardIndex];
+            
+            return (
+                <div>
+                    <div className="header">
+                        <h1>$ Terminal Flashcards</h1>
+                        <p>Master anything, one card at a time</p>
+                    </div>
+                    <div className="deck-selector">
+                        {Object.keys(allDecks).map(deckId => (
+                            <button key={deckId} className={`deck-btn ${selectedDeck === deckId ? 'active' : ''}`}
+                                onClick={() => setSelectedDeck(deckId)}>{allDecks[deckId].name}</button>
+                        ))}
+                    </div>
+                    <div className="stats">
+                        <div className="stat-box"><div className="stat-label">Total</div><div className="stat-value">{stats.total}</div></div>
+                        <div className="stat-box"><div className="stat-label">Learned</div><div className="stat-value">{stats.learned}</div></div>
+                        <div className="stat-box"><div className="stat-label">Reviewing</div><div className="stat-value">{stats.reviewing}</div></div>
+                    </div>
+                    <div className="card-container">
+                        <div className={`flashcard ${isFlipped ? 'flipped' : ''}`}>
+                            <div className="card-type">{currentCard.category}</div>
+                            <div className="card-number">{currentCardIndex + 1}/{cards.length}</div>
+                            <div className="card-content">
+                                <div className="card-question">{currentCard.question}</div>
+                                {!isFlipped && (
+                                    <div className="answer-input-container">
+                                        <input type="text" className="answer-input" placeholder="Type your answer..."
+                                            value={userAnswer} onChange={(e) => setUserAnswer(e.target.value)}
+                                            onKeyPress={(e) => { if (e.key === 'Enter' && userAnswer.trim()) handleShowAnswer(); }}
+                                            autoFocus />
+                                        <button className="show-answer-btn" onClick={handleShowAnswer}
+                                            disabled={!userAnswer.trim()}>Show Answer</button>
+                                    </div>
+                                )}
+                                {isFlipped && gradeResult && (
+                                    <>
+                                        <div className="grade-feedback" style={{ borderColor: gradeResult.color, background: `${gradeResult.color}15` }}>
+                                            <span className="grade-emoji">{gradeResult.emoji}</span>
+                                            <div className="grade-label" style={{ color: gradeResult.color }}>{gradeResult.label}</div>
+                                        </div>
+                                        {userAnswer && (
+                                            <div className="user-answer-display">
+                                                <div className="user-answer-label">Your Answer:</div>
+                                                <div className="user-answer-text">{userAnswer}</div>
+                                            </div>
+                                        )}
+                                        <div className="card-answer">{currentCard.answer}</div>
+                                        {currentCard.example && <div className="card-example">{currentCard.example}</div>}
+                                        {currentCard.tip && <div className="card-tip">💡 {currentCard.tip}</div>}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                        {isFlipped && gradeResult && (
+                            <div className="buttons">
+                                <button className="btn btn-good" onClick={handleNextCard} style={{ minWidth: '200px' }}>Next Card →</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+        
+        ReactDOM.render(<FlashcardApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>
