@@ -522,6 +522,104 @@
             margin-top: 1rem;
         }
         
+        .setup-modal {
+            max-width: 600px;
+        }
+        
+        .setup-steps {
+            background: rgba(88, 166, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        
+        .setup-step {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+            position: relative;
+        }
+        
+        .setup-step:last-child {
+            margin-bottom: 0;
+        }
+        
+        .setup-step-number {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 1.5rem;
+            height: 1.5rem;
+            background: var(--accent-blue);
+            color: var(--bg-dark);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        
+        .setup-step-text {
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+        
+        .setup-link {
+            color: var(--accent-green);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .setup-link:hover {
+            text-decoration: underline;
+        }
+        
+        .privacy-notice {
+            background: rgba(63, 185, 80, 0.05);
+            border-left: 3px solid var(--accent-green);
+            padding: 1rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 1rem;
+        }
+        
+        .settings-icon {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1.25rem;
+            z-index: 100;
+        }
+        
+        .settings-icon:hover {
+            border-color: var(--accent-blue);
+            transform: rotate(90deg);
+        }
+        
+        .key-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: rgba(88, 166, 255, 0.05);
+            padding: 0.5rem;
+            border-radius: 4px;
+            word-break: break-all;
+            margin: 1rem 0;
+        }
+        
         .buttons {
             display: flex;
             gap: 1rem;
@@ -803,6 +901,9 @@
         };
         
         function FlashcardApp() {
+            const [apiKey, setApiKey] = useState('');
+            const [showApiKeySetup, setShowApiKeySetup] = useState(false);
+            const [showSettings, setShowSettings] = useState(false);
             const [allDecks, setAllDecks] = useState({});
             const [selectedDeck, setSelectedDeck] = useState('file-manipulation');
             const [cards, setCards] = useState([]);
@@ -816,6 +917,16 @@
             const [generatorTopic, setGeneratorTopic] = useState('');
             const [isGenerating, setIsGenerating] = useState(false);
             const [generationError, setGenerationError] = useState(null);
+            
+            // Check for API key on mount
+            useEffect(() => {
+                const savedKey = localStorage.getItem('anthropicApiKey');
+                if (savedKey) {
+                    setApiKey(savedKey);
+                } else {
+                    setShowApiKeySetup(true);
+                }
+            }, []);
             
             // Load all decks from localStorage
             useEffect(() => {
@@ -934,6 +1045,10 @@
             
             const generateNewDeck = async () => {
                 if (!generatorTopic.trim()) return;
+                if (!apiKey) {
+                    setGenerationError('Please set up your API key first');
+                    return;
+                }
                 
                 setIsGenerating(true);
                 setGenerationError(null);
@@ -943,6 +1058,8 @@
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
+                            "x-api-key": apiKey,
+                            "anthropic-version": "2023-06-01"
                         },
                         body: JSON.stringify({
                             model: "claude-sonnet-4-20250514",
@@ -976,7 +1093,8 @@ Requirements:
                     });
                     
                     if (!response.ok) {
-                        throw new Error(\`API request failed: \${response.status}\`);
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.error?.message || `API request failed: ${response.status}`);
                     }
                     
                     const data = await response.json();
@@ -991,7 +1109,7 @@ Requirements:
                     // Add unique IDs to cards
                     const cardsWithIds = deckData.cards.map((card, index) => ({
                         ...card,
-                        id: \`\${deckId}-\${index + 1}\`,
+                        id: `${deckId}-${index + 1}`,
                         category: deckData.deckName || generatorTopic
                     }));
                     
@@ -1020,6 +1138,18 @@ Requirements:
                 } finally {
                     setIsGenerating(false);
                 }
+            };
+            
+            const saveApiKey = (key) => {
+                localStorage.setItem('anthropicApiKey', key);
+                setApiKey(key);
+                setShowApiKeySetup(false);
+            };
+            
+            const removeApiKey = () => {
+                localStorage.removeItem('anthropicApiKey');
+                setApiKey('');
+                setShowSettings(false);
             };
             
             const resetSession = () => {
@@ -1094,6 +1224,12 @@ Requirements:
             
             return (
                 <div>
+                    {apiKey && (
+                        <div className="settings-icon" onClick={() => setShowSettings(true)}>
+                            ⚙️
+                        </div>
+                    )}
+                    
                     <div className="header">
                         <h1>$ Terminal Flashcards</h1>
                         <p>Master anything, one card at a time</p>
@@ -1111,7 +1247,7 @@ Requirements:
                         ))}
                         <button
                             className="generate-btn"
-                            onClick={() => setShowGenerator(true)}
+                            onClick={() => apiKey ? setShowGenerator(true) : setShowApiKeySetup(true)}
                         >
                             ✨ Generate New Deck
                         </button>
@@ -1274,6 +1410,106 @@ Requirements:
                                         ) : (
                                             'Generate Deck'
                                         )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {showApiKeySetup && (
+                        <div className="modal-overlay">
+                            <div className="modal setup-modal" onClick={(e) => e.stopPropagation()}>
+                                <div className="modal-header">
+                                    <div className="modal-title">🔑 Welcome to Terminal Flashcards!</div>
+                                    <div className="modal-subtitle">
+                                        To generate AI-powered flashcards, you'll need an Anthropic API key
+                                    </div>
+                                </div>
+                                
+                                <div className="setup-steps">
+                                    <div className="setup-step">
+                                        <div className="setup-step-number">1</div>
+                                        <div className="setup-step-text">
+                                            Go to <a href="https://console.anthropic.com" target="_blank" className="setup-link">console.anthropic.com</a>
+                                        </div>
+                                    </div>
+                                    <div className="setup-step">
+                                        <div className="setup-step-number">2</div>
+                                        <div className="setup-step-text">
+                                            Create an account (free tier available!)
+                                        </div>
+                                    </div>
+                                    <div className="setup-step">
+                                        <div className="setup-step-number">3</div>
+                                        <div className="setup-step-text">
+                                            Generate an API key in Settings → API Keys
+                                        </div>
+                                    </div>
+                                    <div className="setup-step">
+                                        <div className="setup-step-number">4</div>
+                                        <div className="setup-step-text">
+                                            Paste your API key below
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <input
+                                    type="password"
+                                    className="modal-input"
+                                    placeholder="sk-ant-api03-..."
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && apiKey.trim()) {
+                                            saveApiKey(apiKey);
+                                        }
+                                    }}
+                                />
+                                
+                                <div className="privacy-notice">
+                                    🔒 Your API key is stored only in your browser's localStorage. It never leaves your device and is only used to generate flashcards.
+                                </div>
+                                
+                                <div className="modal-buttons">
+                                    <button
+                                        className="modal-btn modal-btn-primary"
+                                        onClick={() => saveApiKey(apiKey)}
+                                        disabled={!apiKey.trim()}
+                                    >
+                                        Save API Key
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {showSettings && (
+                        <div className="modal-overlay" onClick={() => setShowSettings(false)}>
+                            <div className="modal" onClick={(e) => e.stopPropagation()}>
+                                <div className="modal-header">
+                                    <div className="modal-title">⚙️ Settings</div>
+                                </div>
+                                
+                                <div className="modal-subtitle">API Key</div>
+                                <div className="key-display">
+                                    {apiKey ? `${apiKey.substring(0, 20)}...${apiKey.substring(apiKey.length - 4)}` : 'No key set'}
+                                </div>
+                                
+                                <div className="modal-buttons">
+                                    <button
+                                        className="modal-btn modal-btn-secondary"
+                                        onClick={() => {
+                                            removeApiKey();
+                                            setShowApiKeySetup(true);
+                                        }}
+                                    >
+                                        Change Key
+                                    </button>
+                                    <button
+                                        className="modal-btn modal-btn-secondary"
+                                        onClick={() => setShowSettings(false)}
+                                    >
+                                        Close
                                     </button>
                                 </div>
                             </div>
